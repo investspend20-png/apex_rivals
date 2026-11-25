@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Apex Rivals</title><link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main>
+<header><div><p class="series">CITY STREET RACING</p><h1>APEX<span> RIVALS</span></h1></div><span class="course">METRO SPRINT <b> / </b> 4.2 KM</span></header>
+<section class="arena" aria-label="Race track">
+<div class="view"><canvas id="track" width="900" height="540" aria-label="3D city racing view"></canvas><canvas id="effects" aria-hidden="true"></canvas></div>
+<div class="hud" hidden><div class="routeHUD"><strong id="district">Arts District</strong><span id="distance">4.20 km left</span><progress id="routeProgress" max="4200" value="0" aria-label="Course progress"></progress><span id="position"></span><button id="exit">Exit race</button></div><div class="telemetry"><span id="speed">0 km/h</span><label for="boost">NITRO</label><progress id="boost" max="100" value="100"></progress><strong id="driftState"></strong></div></div>
+<div id="countdown" aria-live="polite"></div>
+<div class="panel" id="setup">
+<h2 id="setupTitle">Race a friend</h2>
+<p id="intro">Create a room and share the invite with a friend.</p>
+<div class="row"><button class="primary" id="create">Create race</button><button id="practice">Solo practice</button></div>
+<form id="join"><label for="code">Room code</label><div class="row"><input id="code" maxlength="10" placeholder="Enter invite code" required autocomplete="off" spellcheck="false"><button id="joinButton">Join race</button></div></form><p><a href="apexrivals://paste">Open invite link</a></p>
+</div>
+<div class="panel" id="lobby" hidden>
+<h2 id="roomTitle">Race lobby</h2><p id="status" role="status"></p>
+<div id="sharing"><label for="invite">Invite link</label><div class="row"><input id="invite" readonly><button id="copy">Share</button></div></div>
+<div class="row actions"><button class="primary" id="ready">Ready</button><button id="leave">Leave</button></div>
+</div>
+</section>
+<p id="error" role="alert" hidden></p>
+<div class="touch cockpit" hidden aria-label="Cockpit driving controls">
+  <div class="wheel-column">
+    <div id="wheel" class="wheel" role="slider" tabindex="0" aria-label="Steering wheel" aria-valuemin="-100" aria-valuemax="100" aria-valuenow="0">
+      <div class="wheel-rim" aria-hidden="true">
+        <div class="wheel-stripe"></div>
+        <div class="wheel-spoke horizontal"></div><div class="wheel-spoke vertical"></div>
+        <div class="wheel-hub"></div>
+      </div>
+    </div>
+    <button data-key="16" class="drift auxiliary">Drift</button>
+  </div>
+  <div class="pedal-column">
+    <button data-key="32" class="nitro auxiliary">Nitro</button>
+    <div class="pedals">
+      <button class="pedal brake" id="brake" aria-label="Brake"><span aria-hidden="true"></span>Brake</button>
+      <button class="pedal gas" id="gas" aria-label="Accelerator"><span aria-hidden="true"></span>Gas</button>
+    </div>
+  </div>
+</div>
+</main><script type="module" src="/game.js"></script>
+</body></html>
+
+
+
+

@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: apex-rivals-online
+    runtime: node
+    plan: free
+    buildCommand: node --check server.mjs
+    startCommand: node server.mjs
+    healthCheckPath: /health
+
