@@ -1,9 +1,10 @@
 import {LENGTH,WIDTH,route,district,halfWidth,TURNS} from './route.mjs';
 
 const canvas=document.getElementById('track');
-const gl=canvas.getContext('webgl',{alpha:false,antialias:true,powerPreference:'high-performance'});
+const gl=canvas.getContext('webgl',{alpha:false,antialias:false,powerPreference:'high-performance'});
 const overlay=document.getElementById('effects');
 const fx=overlay.getContext('2d');
+overlay.hidden=true;
 const css=(r,g,b)=>[r/255,g/255,b/255];
 const curb=css(134,145,151), road=css(43,48,53), white=css(193,182,152);
 const cyan=css(51,200,228), amber=css(255,171,86), glass=css(24,43,58);
@@ -26,11 +27,11 @@ function program(){
       float sun=max(dot(n,normalize(vec3(-.45,.78,-.22))),0.);
       float point=max(dot(n,normalize(toL)),0.)*(1.-smoothstep(4.,25.,length(toL)));
       float shine=pow(max(dot(n,normalize(normalize(toL)+normalize(toEye))),0.),20.)*point;
-      float grain=fract(sin(dot(floor(vPos.xz*7.),vec2(12.9,78.2)))*3246.7);
+      float grain=fract(dot(floor(vPos.xz*7.),vec2(.618034,.381966)));
       vec3 color=vColor*(.53+sun*.58+point*.7+grain*.085)+vec3(.36,.43,.64)*shine*.35;
       color+=vGlow*vColor*(.52+.1*sin(uTime*2.));
       vec3 mist=mix(vec3(.23,.22,.33),vec3(.34,.27,.34),clamp((vPos.y+8.)/100.,0.,1.));
-      gl_FragColor=vec4(mix(color,mist,smoothstep(78.,565.,d)),1.);
+      gl_FragColor=vec4(mix(color,mist,smoothstep(82.,380.,d)),1.);
     }`;
   const p=gl.createProgram();
   for(const [kind,code] of [[gl.VERTEX_SHADER,v],[gl.FRAGMENT_SHADER,f]]){
@@ -251,34 +252,52 @@ function draw(mesh,transform=identity){
     gl.vertexAttribPointer(attr[name],size,gl.FLOAT,false,40,offset);
   gl.uniformMatrix4fv(uniform.uModel,false,transform);gl.drawArrays(gl.TRIANGLES,0,mesh.count);
 }
-let previous=0,camera=null;
-function resize(){
-  const w=Math.max(1,Math.floor(canvas.clientWidth*Math.min(devicePixelRatio,1.65)));
-  const h=Math.max(1,Math.floor(canvas.clientHeight*Math.min(devicePixelRatio,1.65)));
-  if(canvas.width!==w||canvas.height!==h){canvas.width=overlay.width=w;canvas.height=overlay.height=h;}
+const mobile=matchMedia('(pointer: coarse)').matches;
+let scale=Math.min(devicePixelRatio,mobile?1.09:1.45);
+let previous=0,cameraLane=null,cameraBoost=0,slowFrames=0,lastLayout=0;
+let canvasWidth=0,canvasHeight=0;
+function resize(now){
+  // Read layout occasionally rather than on every frame while the HUD updates.
+  if(now-lastLayout<160&&canvasWidth&&canvasHeight)return;
+  lastLayout=now;
+  canvasWidth=canvas.clientWidth;canvasHeight=canvas.clientHeight;
+  const w=Math.max(1,Math.floor(canvasWidth*scale));
+  const h=Math.max(1,Math.floor(canvasHeight*scale));
+  if(canvas.width!==w||canvas.height!==h){
+    canvas.width=w;canvas.height=h;
+    overlay.width=Math.max(1,Math.floor(w*.63));overlay.height=Math.max(1,Math.floor(h*.63));
+  }
 }
 export function drawRace(players,index,started,now){
   if(!shader)return;
-  resize();
-  const dt=Math.min(.05,(now-previous)/1000)||.016;previous=now;
+  const elapsed=previous?now-previous:16.67;
+  const dt=Math.min(.05,elapsed/1000);previous=now;
+  if(elapsed>22&&elapsed<150)slowFrames++;
+  else slowFrames=Math.max(0,slowFrames-2);
+  if(slowFrames>38&&scale>.82){
+    scale=Math.max(.82,scale-.13);slowFrames=0;lastLayout=-1000;
+  }
+  resize(now);
   const p=players[index]||{progress:0,lane:-2,v:0};
   const progress=p.progress||0;
-  const moving=started&&p.v>1, intro=!started?Math.sin(now*.00036)*3.8:0;
-  const anchor=route(progress-9-(p.nitro?2.2:0),(p.lane||0)*.96+intro);
-  const target=route(progress+11,(p.lane||0)*.91);
-  const ride=moving?Math.sin(now*.018)*Math.min(.075,p.v*.0007):0;
-  const wanted=[anchor.x,anchor.y+3.25+ride,anchor.z];
-  if(!camera||Math.abs(camera[2]-wanted[2])>110)camera=wanted;
-  else camera=camera.map((n,i)=>n+(wanted[i]-n)*(1-Math.exp(-dt*(i===2?18:9))));
+  const intro=!started?Math.sin(now*.00036)*3.8:0;
+  const lane=(p.lane||0)+intro;
+  if(cameraLane===null||!started)cameraLane=lane;
+  else cameraLane+=(lane-cameraLane)*(1-Math.exp(-dt*10));
+  cameraBoost+=((p.nitro?1:0)-cameraBoost)*(1-Math.exp(-dt*7));
+  const anchor=route(progress-9-2.2*cameraBoost,cameraLane*.96);
+  const target=route(progress+11,cameraLane*.91);
+  const ride=started?Math.sin(now*.013)*Math.min(.025,p.v*.00024):0;
+  const camera=[anchor.x,anchor.y+3.25+ride,anchor.z];
   const aspect=canvas.width/canvas.height;
   const own=route(progress,p.lane||0);
   gl.viewport(0,0,canvas.width,canvas.height);
   gl.clearColor(.24,.23,.34,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
-  gl.uniformMatrix4fv(uniform.uView,false,view(camera,[target.x,target.y+1.5,target.z],aspect,(aspect<1?.98:.84)+(p.nitro?.14:0)));
+  gl.uniformMatrix4fv(uniform.uView,false,view(camera,[target.x,target.y+1.5,target.z],aspect,(aspect<1?.98:.84)+(.14*cameraBoost)));
   gl.uniform3fv(uniform.uEye,camera);gl.uniform3fv(uniform.uLight,[own.x,own.y+2,own.z-7]);gl.uniform1f(uniform.uTime,now/1000);
-  for(const chunk of chunks)if(chunk.end>progress-42&&chunk.start<progress+555)draw(chunk.mesh);
+  for(const chunk of chunks)if(chunk.end>progress-42&&chunk.start<progress+400)draw(chunk.mesh);
   players.forEach((player,i)=>{
-    if(!player||Math.abs((player.progress||0)-progress)>550)return;
+    if(!player||Math.abs((player.progress||0)-progress)>400)return;
     const q=route(player.progress||0,player.lane||0);
     const yaw=q.heading-(player.headingError||0)-(player.slip||0)*.65;
     draw(contactShadow,model(q.x,q.y+.018,q.z,q.heading));
@@ -288,14 +307,14 @@ export function drawRace(players,index,started,now){
       draw(flame,model(q.x+x*Math.cos(yaw)+z*Math.sin(yaw),q.y+.29,q.z-x*Math.sin(yaw)+z*Math.cos(yaw),yaw));
     }
   });
-  drawEffects(p,progress,now);
+  drawEffects(p,now);
 }
-function drawEffects(player,progress,now){
+function drawEffects(player,now){
+  const active=Boolean(player.scraping||player.nitro);
+  if(overlay.hidden===active)overlay.hidden=!active;
+  if(!active)return;
   const w=overlay.width,h=overlay.height;
   fx.clearRect(0,0,w,h);
-  const vignette=fx.createRadialGradient(w*.5,h*.51,Math.min(w,h)*.23,w*.5,h*.53,Math.max(w,h)*.67);
-  vignette.addColorStop(0,'transparent');vignette.addColorStop(1,'#090a20a5');
-  fx.fillStyle=vignette;fx.fillRect(0,0,w,h);
   if(player.scraping){
     const side=Math.sign(player.lane)||1;
     fx.strokeStyle='#ff9e59cf';fx.lineWidth=Math.max(1,w/650);
@@ -315,6 +334,7 @@ function drawEffects(player,progress,now){
   }
 }
 export {district};
+
 
 
 

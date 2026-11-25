@@ -1,15 +1,20 @@
 import {drawRace,district,supported} from './scene.mjs';
 import {LENGTH,turnCue} from './route.mjs';
+import {RaceMotion} from './motion.mjs';
+import {makeMinimap} from './minimap.mjs';
 
 const byId = id => document.getElementById(id);
 const arena = document.querySelector('.arena');
 const hud = document.querySelector('.hud');
 const touch = document.querySelector('.touch');
+const motion=new RaceMotion();
+const raceMap=byId('raceMap');
+const updateMap=makeMinimap(byId('minimap'));
 const timeLabel = ms => {
   const seconds=Math.max(0,ms)/1000;
   return Math.floor(seconds/60)+':'+(seconds%60).toFixed(2).padStart(5,'0');
 };
-let seat=null, state=null, generation=0, rendered=[], keyboard=0, action='', busy=false;
+let seat=null, state=null, generation=0, keyboard=0, action='', busy=false;
 const pressed=new Set(), pointers=new Map(), controls={ArrowUp:1,KeyW:1,ArrowDown:2,KeyS:2,ArrowLeft:4,KeyA:4,ArrowRight:8,KeyD:8,Space:16,ShiftLeft:32,ShiftRight:32};
 const reduceKeys=values=>Array.from(values).reduce((mask,key)=>mask|key,0);
 const wheel=byId('wheel');
@@ -118,7 +123,7 @@ async function post(path,data) {
 }
 function showSetup(clearInvite=true) {
   document.body.classList.remove('driving');
-  generation++; seat=null; state=null;rendered=[];action='';clearControls();
+  generation++; seat=null; state=null;motion.reset();action='';clearControls();
   if(clearInvite) {
     history.replaceState(null,'',location.pathname);
     byId('setupTitle').textContent='Race a friend';
@@ -129,7 +134,7 @@ function showSetup(clearInvite=true) {
   document.querySelector('.hud').hidden=true;
   document.querySelector('.touch').hidden=true;
   document.querySelector('.arena').classList.remove('racing');
-  byId('countdown').textContent='';byId('cornerCue').hidden=true;
+  byId('countdown').textContent='';byId('cornerCue').hidden=true;raceMap.hidden=true;
 }
 async function enter(path,code,practice=false) {
   if(!supported){error('This device could not start WebGL.');return;}
@@ -162,6 +167,11 @@ byId('ready').onclick=()=>{
   action=state?.winner===null?'ready':'rematch';
   byId('ready').disabled=true;
 };
+function label(id,value){
+  const node=byId(id);
+  const text=String(value);
+  if(node.textContent!==text)node.textContent=text;
+}
 function update() {
   const {index,players,start,winner,practice,finished,now}=state;
   const me=players[index], other=players[1-index];
@@ -170,15 +180,16 @@ function update() {
   arena.classList.toggle('racing',racing);
   document.body.classList.toggle('driving',racing);
   byId('lobby').hidden=racing;
-  hud.hidden=touch.hidden=!racing;
-  byId('district').textContent=district(me.progress);
-  byId('distance').textContent=((LENGTH-me.progress)/1000).toFixed(2)+' km left';
+  hud.hidden=touch.hidden=raceMap.hidden=!racing;
+  byId('mapRival').hidden=!other;
+  label('district',district(me.progress));
+  label('distance',((LENGTH-me.progress)/1000).toFixed(2)+' km left');
   byId('routeProgress').value=me.progress;
   byId('position').textContent=practice?timeLabel(now-start):
     (!other||me.progress>=other.progress?'1st of 2':'2nd of 2');
-  byId('speed').textContent=Math.round(me.v*3.6)+' km/h';
+  label('speed',Math.round(me.v*3.6)+' km/h');
   byId('boost').value=me.boost;
-  byId('driftState').textContent=me.scraping?'CURB CONTACT':me.drifting?'DRIFTING':me.nitro?'BOOSTING':'';
+  label('driftState',me.scraping?'CURB CONTACT':me.drifting?'DRIFTING':me.nitro?'BOOSTING':'');
   const turn=racing&&turnCue(me.progress);
   byId('cornerCue').hidden=!turn;
   if(turn){
@@ -206,7 +217,8 @@ async function poll(id) {
     const next=await post('/tick',{...seat,action:sent,keys:keyboard|reduceKeys(pointers.values()),...cockpit});
     if(id!==generation) return;
     if(action===sent) action='';
-    if(state?.start!==next.start) rendered=[];
+    if(state?.start!==next.start||next.winner!==state?.winner)motion.reset();
+    motion.push(next,performance.now());
     state=next;error();update();
   } catch(e){
     if(id!==generation) return;
@@ -215,19 +227,12 @@ async function poll(id) {
   }
   setTimeout(()=>poll(id),state?.start&&state.winner===null?45:280);
 }
-let lastFrame=0;
+const parked=[{progress:0,lane:-2.8,v:0},{progress:1.1,lane:2.8,v:0}];
 function draw(now){
-  const players=state?.players||[{progress:0,lane:-2.8,v:0},{progress:1.1,lane:2.8,v:0}];
+  const players=motion.render(now)||parked;
   const index=state?.index??0;
-  const mix=1-Math.exp(-Math.min(.05,(now-lastFrame)/1000)*20);
-  lastFrame=now;
-  players.forEach((p,i)=>{
-    if(!p){rendered[i]=null;return;}
-    const r=rendered[i]??={...p};
-    for(const key of ['progress','lane','v','slip','headingError']){const old=r[key]??0;r[key]=old+((p[key]??0)-old)*mix;}
-    r.nitro=p.nitro;r.drifting=p.drifting;r.scraping=p.scraping;
-  });
-  drawRace(rendered,index,Boolean(state?.start),now);
+  drawRace(players,index,Boolean(state?.start),now);
+  if(!raceMap.hidden)updateMap(players,index,now);
   requestAnimationFrame(draw);
 }
 const invite=new URL(location.href).searchParams.get('room');
@@ -238,6 +243,8 @@ if(invite){
   byId('create').hidden=byId('practice').hidden=true;
 }
 if(supported)requestAnimationFrame(draw);else error('This device could not start WebGL.');
+
+
 
 
 

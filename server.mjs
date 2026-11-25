@@ -10,6 +10,8 @@ for (const [url, name, type] of [
   ['/game.js', 'game.js', 'text/javascript'],
   ['/route.mjs', 'route.mjs', 'text/javascript'],
   ['/scene.mjs', 'scene.mjs', 'text/javascript'],
+  ['/motion.mjs', 'motion.mjs', 'text/javascript'],
+  ['/minimap.mjs', 'minimap.mjs', 'text/javascript'],
   ['/style.css', 'style.css', 'text/css']
 ]) {
   files.set(url, {data: await readFile(new URL('./public/' + name, import.meta.url)), type});
@@ -156,4 +158,6 @@ server.requestTimeout = 10000;
 server.listen(Number(process.env.PORT || 3000), '0.0.0.0', () => {
   console.log('Apex Rivals listening on port ' + server.address().port);
 });
+
+
 

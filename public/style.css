@@ -26,3 +26,9 @@
 .cockpit .pedal{grid-template-rows:minmax(0,1fr) auto}.cockpit .pedal span{align-self:end}
 .corner-cue{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:grid;gap:2px;padding:7px 12px;border:1px solid #a68c56;background:#181623ea;color:#ffdc98;text-align:center;white-space:nowrap;border-radius:7px;pointer-events:none}.corner-cue strong{font-size:.86rem}.corner-cue span{font-size:.72rem;color:#e5dcca}.corner-cue.caution{border-color:#fb9c62;background:#392127ed;color:#ffd2a8}.corner-cue.caution span{color:#f6ba9b}
 @media(orientation:landscape) and (max-height:640px){.corner-cue{bottom:70px}}
+.view::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 52%,transparent 44%,#090a2070 100%)}
+.arena .race-map{position:absolute;z-index:1;right:8px;bottom:89px;width:82px;border:1px solid #6a689477;border-radius:7px;background:#0b1022d9;padding:3px 4px 5px;pointer-events:none}
+.arena .race-map canvas,.arena.racing .race-map canvas{position:static;width:100%;height:auto;aspect-ratio:194/244;max-height:none;object-fit:contain}
+.map-legend{display:flex;flex-wrap:wrap;justify-content:center;gap:1px 6px;font:700 9px/1.2 ui-monospace,monospace}
+.map-legend .you{color:#68edff}.map-legend .rival{color:#ff74ac}
+@media(orientation:landscape){.arena .race-map{top:8px;bottom:auto;right:136px;width:80px}}

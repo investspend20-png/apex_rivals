@@ -10,7 +10,7 @@
 <section class="arena" aria-label="Race track">
 <div class="view"><canvas id="track" width="900" height="540" aria-label="3D city racing view"></canvas><canvas id="effects" aria-hidden="true"></canvas></div>
 <div class="hud" hidden><div class="routeHUD"><strong id="district">Arts District</strong><span id="distance">4.20 km left</span><progress id="routeProgress" max="4200" value="0" aria-label="Course progress"></progress><span id="position"></span><button id="exit">Exit race</button></div><div class="telemetry"><span id="speed">0 km/h</span><label for="boost">NITRO</label><progress id="boost" max="100" value="100"></progress><strong id="driftState"></strong></div></div>
-<div id="countdown" aria-live="polite"></div><div class="corner-cue" id="cornerCue" hidden><strong id="cornerName"></strong><span id="cornerHint"></span></div>
+<aside id="raceMap" class="race-map" aria-label="Live course map" hidden><canvas id="minimap" aria-label="Route from start to finish and racer positions"></canvas><div class="map-legend"><span class="you">You</span><span class="rival" id="mapRival" hidden>Rival</span></div></aside><div id="countdown" aria-live="polite"></div><div class="corner-cue" id="cornerCue" hidden><strong id="cornerName"></strong><span id="cornerHint"></span></div>
 <div class="panel" id="setup">
 <h2 id="setupTitle">Race a friend</h2>
 <p id="intro">Create a room and share the invite with a friend.</p>
@@ -45,6 +45,7 @@
 </div>
 </main><script type="module" src="/game.js"></script>
 </body></html>
+
 
 
 
