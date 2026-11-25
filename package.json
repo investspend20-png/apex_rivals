@@ -1,1 +1,2 @@
-{"name":"apex-rivals-online","version":"2.1.0","type":"module","private":true,"engines":{"node":"22.x"},"scripts":{"start":"node server.mjs"}}
+{"name":"apex-rivals-online","version":"2.2.0","type":"module","private":true,"engines":{"node":"22.x"},"scripts":{"start":"node server.mjs"}}
+

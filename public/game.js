@@ -1,5 +1,5 @@
 import {drawRace,district,supported} from './scene.mjs';
-import {LENGTH} from './route.mjs';
+import {LENGTH,turnCue} from './route.mjs';
 
 const byId = id => document.getElementById(id);
 const arena = document.querySelector('.arena');
@@ -129,7 +129,7 @@ function showSetup(clearInvite=true) {
   document.querySelector('.hud').hidden=true;
   document.querySelector('.touch').hidden=true;
   document.querySelector('.arena').classList.remove('racing');
-  byId('countdown').textContent='';
+  byId('countdown').textContent='';byId('cornerCue').hidden=true;
 }
 async function enter(path,code,practice=false) {
   if(!supported){error('This device could not start WebGL.');return;}
@@ -178,7 +178,15 @@ function update() {
     (!other||me.progress>=other.progress?'1st of 2':'2nd of 2');
   byId('speed').textContent=Math.round(me.v*3.6)+' km/h';
   byId('boost').value=me.boost;
-  byId('driftState').textContent=me.drifting?'DRIFTING':me.nitro?'BOOSTING':'';
+  byId('driftState').textContent=me.scraping?'CURB CONTACT':me.drifting?'DRIFTING':me.nitro?'BOOSTING':'';
+  const turn=racing&&turnCue(me.progress);
+  byId('cornerCue').hidden=!turn;
+  if(turn){
+    const remaining=Math.round(turn.start-me.progress);
+    byId('cornerName').textContent=turn.label+(remaining>0?' · '+remaining+' m':'');
+    byId('cornerHint').textContent=turn.advice+' · '+turn.speed+' km/h';
+    byId('cornerCue').classList.toggle('caution',me.v*3.6>turn.speed+10);
+  }
   const remaining=start-now;
   byId('countdown').textContent=racing&&remaining>-650?(remaining>0?Math.ceil(remaining/1000):'GO!'):'';
   if(racing)return;
@@ -216,8 +224,8 @@ function draw(now){
   players.forEach((p,i)=>{
     if(!p){rendered[i]=null;return;}
     const r=rendered[i]??={...p};
-    for(const key of ['progress','lane','v','slip'])r[key]=p[key]===undefined?0:r[key]+(p[key]-r[key])*mix;
-    r.nitro=p.nitro;r.drifting=p.drifting;
+    for(const key of ['progress','lane','v','slip','headingError']){const old=r[key]??0;r[key]=old+((p[key]??0)-old)*mix;}
+    r.nitro=p.nitro;r.drifting=p.drifting;r.scraping=p.scraping;
   });
   drawRace(rendered,index,Boolean(state?.start),now);
   requestAnimationFrame(draw);
@@ -230,6 +238,7 @@ if(invite){
   byId('create').hidden=byId('practice').hidden=true;
 }
 if(supported)requestAnimationFrame(draw);else error('This device could not start WebGL.');
+
 
 
 

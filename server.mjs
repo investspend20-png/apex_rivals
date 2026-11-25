@@ -31,8 +31,8 @@ function resetRoom(room) {
 }
 function snapshot(p) {
   if (!p) return null;
-  const {lane, v, progress, ready, rematch, boost, nitro, slip, drifting} = p;
-  return {lane, v, progress, ready, rematch, boost, nitro, slip, drifting};
+  const {lane, v, progress, ready, rematch, boost, nitro, slip, drifting, headingError, scraping} = p;
+  return {lane, v, progress, ready, rematch, boost, nitro, slip, drifting, headingError, scraping};
 }
 function handleRace(path, data) {
   const now = Date.now();
@@ -156,3 +156,4 @@ server.requestTimeout = 10000;
 server.listen(Number(process.env.PORT || 3000), '0.0.0.0', () => {
   console.log('Apex Rivals listening on port ' + server.address().port);
 });
+

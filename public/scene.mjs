@@ -1,4 +1,4 @@
-import {LENGTH,WIDTH,route,district} from './route.mjs';
+import {LENGTH,WIDTH,route,district,halfWidth,TURNS} from './route.mjs';
 
 const canvas=document.getElementById('track');
 const gl=canvas.getContext('webgl',{alpha:false,antialias:true,powerPreference:'high-performance'});
@@ -87,7 +87,17 @@ class Mesh{
   }
 }
 function point(s,lane,height=0){const p=route(s,lane);return [p.x,p.y+height,p.z];}
-function strip(m,a,b,l,r,h,c,glow=0){m.quad(point(a,l,h),point(a,r,h),point(b,r,h),point(b,l,h),c,glow);}
+function strip(m,a,b,l,r,h,c,glow=0){
+  const ka=halfWidth(a)/(WIDTH/2),kb=halfWidth(b)/(WIDTH/2);
+  m.quad(point(a,l*ka,h),point(a,r*ka,h),point(b,r*kb,h),point(b,l*kb,h),c,glow);
+}
+function marker(mesh,s,side){
+  const p=route(s,side*(halfWidth(s)+.65));
+  mesh.solid(p.x,p.y,p.z,.12,1.55,.12,curb);
+  const a=point(s,side*(halfWidth(s)+.12),1.12),b=point(s,side*(halfWidth(s)+1.16),1.12);
+  const c=[b[0],b[1]+.57,b[2]],d=[a[0],a[1]+.57,a[2]];
+  mesh.quad(a,b,c,d,amber,.5);
+}
 function gantry(mesh,s,finish){
   const p=route(s),z=p.z,x=p.x,y=p.y;
   for(const off of [-9,9])mesh.solid(x+off,y,z,.45,6,1,curb);
@@ -97,7 +107,7 @@ function gantry(mesh,s,finish){
 }
 let seed=403;
 function rand(){seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;}
-function building(m,x,z,width,depth,height,style){
+function building(m,x,z,width,depth,height,style,side){
   const y=-1.6,c=[css(77,88,99),css(99,95,107),css(61,78,92),css(113,105,108)][style];
   m.solid(x,y,z,width,height,depth,c);
   m.solid(x,y+height,z,width+1,.9,depth+1,css(94,106,115));
@@ -117,7 +127,7 @@ function building(m,x,z,width,depth,height,style){
         lit>.67?warm:lit>.43?cool:glass,lit>.56?.62:0);
     }
     for(let col=-depth*.39;col<depth*.42;col+=5.3){
-      const lit=rand(),side=x>route(-z).x?-1:1;
+      const lit=rand();
             const wx=x+side*(width/2+.08), wy=y+floor, wz=z+col;
       m.quad([wx,wy,wz+1.45*side],[wx,wy,wz-1.45*side],[wx,wy+1.8,wz-1.45*side],[wx,wy+1.8,wz+1.45*side],
         lit>.74?warm:glass,lit>.74?.51:0);
@@ -127,13 +137,21 @@ function building(m,x,z,width,depth,height,style){
 const chunks=[];
 if(shader)for(let start=-120;start<LENGTH+120;start+=120){
   const m=new Mesh();
-  const end=start+120,p=route(start+60);
-  m.quad([p.x-900,-1.7,-start],[p.x+900,-1.7,-start],[p.x+900,-1.7,-end],[p.x-900,-1.7,-end],css(56,60,68));
+  const end=start+120,p=route(start+60),a=route(start),b=route(end);
+  m.quad([p.x-900,-1.7,a.z],[p.x+900,-1.7,a.z],[p.x+900,-1.7,b.z],[p.x-900,-1.7,b.z],css(56,60,68));
   for(let s=start;s<end;s+=6){
     strip(m,s,s+6,-WIDTH/2,WIDTH/2,0,road);
     for(const [l,r] of [[-8.7,-8.28],[8.28,8.7]])strip(m,s,s+6,l,r,.08,curb);
     for(const lane of [-2.78,2.78]){
       if(s%18===0)strip(m,s,s+5,lane-.08,lane+.08,.028,white);
+    }
+    const corner=TURNS.find(turn=>turn.label&&s>=turn.start-42&&s<turn.end+30);
+    if(corner&&s%12===0){
+      const side=-Math.sign(corner.delta);
+      marker(m,s,side);
+      const edge=side*8.06;
+      strip(m,s,s+6,Math.min(edge,side*8.45),Math.max(edge,side*8.45),.09,
+        s%24===0?amber:css(231,228,216));
     }
     const elev=route(s).y;
     if(elev<.5){
@@ -153,7 +171,7 @@ if(shader)for(let start=-120;start<LENGTH+120;start+=120){
     if(elev>3 || s>2840){
       for(const lane of [-8.9,8.9]){
         strip(m,s,s+6,lane-.19,lane+.19,.72,curb);
-        m.quad(point(s,lane,.72),point(s,lane,-.35),point(s+6,lane,-.35),point(s+6,lane,.72),css(94,102,113));
+        m.quad(point(s,lane*halfWidth(s)/8.5,.72),point(s,lane*halfWidth(s)/8.5,-.35),point(s+6,lane*halfWidth(s+6)/8.5,-.35),point(s+6,lane*halfWidth(s+6)/8.5,.72),css(94,102,113));
         if(s%30===0&&elev>3){
           const support=route(s,lane*.72);
           m.solid(support.x,-1.7,support.z,1.4,elev+1.6,2.2,curb);
@@ -161,7 +179,7 @@ if(shader)for(let start=-120;start<LENGTH+120;start+=120){
       }
     }
     if(s%24===0 && s>=0){
-      const lamp=route(s,s%48===0?-9.5:9.5);
+      const lamp=route(s,(s%48===0?-1:1)*(halfWidth(s)+1));
       m.solid(lamp.x,lamp.y,lamp.z,.19,6,.19,css(98,103,123));
       m.solid(lamp.x,lamp.y+5.8,lamp.z,.64,.16,1.0,amber,.95);
     }
@@ -170,10 +188,10 @@ if(shader)for(let start=-120;start<LENGTH+120;start+=120){
     const p=route(s,side*(35+rand()*18));
     const industrial=s>2950&&s<3820;
     const height=industrial?9+rand()*19:18+rand()*68;
-    building(m,p.x,p.z,15+rand()*11,16+rand()*9,height,Math.floor(rand()*4));
+    building(m,p.x,p.z,15+rand()*11,16+rand()*9,height,Math.floor(rand()*4),-side);
     if(s%2===0){
       const q=route(s+5,side*(79+rand()*33));
-      building(m,q.x,q.z,23,25,height*.74,2);
+      building(m,q.x,q.z,23,25,height*.74,2,-side);
     }
   }
   for(const mark of [0,1050,2110,3080,LENGTH])if(mark>=start&&mark<end)gantry(m,mark,mark===LENGTH);
@@ -262,7 +280,7 @@ export function drawRace(players,index,started,now){
   players.forEach((player,i)=>{
     if(!player||Math.abs((player.progress||0)-progress)>550)return;
     const q=route(player.progress||0,player.lane||0);
-    const yaw=q.heading-(player.slip||0)*.82;
+    const yaw=q.heading-(player.headingError||0)-(player.slip||0)*.65;
     draw(contactShadow,model(q.x,q.y+.018,q.z,q.heading));
     draw(cars[i===index?0:1],model(q.x,q.y+.035,q.z,yaw));
     if(player.nitro)for(const side of [-1,1]){
@@ -278,6 +296,15 @@ function drawEffects(player,progress,now){
   const vignette=fx.createRadialGradient(w*.5,h*.51,Math.min(w,h)*.23,w*.5,h*.53,Math.max(w,h)*.67);
   vignette.addColorStop(0,'transparent');vignette.addColorStop(1,'#090a20a5');
   fx.fillStyle=vignette;fx.fillRect(0,0,w,h);
+  if(player.scraping){
+    const side=Math.sign(player.lane)||1;
+    fx.strokeStyle='#ff9e59cf';fx.lineWidth=Math.max(1,w/650);
+    for(let i=0;i<12;i++){
+      const phase=(i*.137+now*.004)%1;
+      const x=w*(.5+side*(.11+phase*.11)), y=h*(.69+phase*.10+(i%4)*.008);
+      fx.beginPath();fx.moveTo(x,y);fx.lineTo(x+side*w*.025,y+h*.024);fx.stroke();
+    }
+  }
   if(player.nitro){
     fx.lineWidth=Math.max(1,w/490);fx.strokeStyle='#b7edff61';
     for(let i=0;i<21;i++){
@@ -288,6 +315,8 @@ function drawEffects(player,progress,now){
   }
 }
 export {district};
+
+
 
 
 
