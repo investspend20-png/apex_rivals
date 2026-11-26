@@ -18,6 +18,22 @@ let seat=null, state=null, generation=0, keyboard=0, action='', busy=false;
 const pressed=new Set(), pointers=new Map(), controls={ArrowUp:1,KeyW:1,ArrowDown:2,KeyS:2,ArrowLeft:4,KeyA:4,ArrowRight:8,KeyD:8,Space:16,ShiftLeft:32,ShiftRight:32};
 const reduceKeys=values=>Array.from(values).reduce((mask,key)=>mask|key,0);
 const wheel=byId('wheel');
+const wheelImage=wheel.querySelector('canvas');
+const wheelPaint=wheelImage.getContext('2d');
+wheelPaint.translate(128,128);
+wheelPaint.lineWidth=24;
+const rim=wheelPaint.createLinearGradient(0,-118,0,118);
+rim.addColorStop(0,'#8492aa');rim.addColorStop(.22,'#344056');rim.addColorStop(1,'#172134');
+wheelPaint.strokeStyle=rim;
+wheelPaint.beginPath();wheelPaint.arc(0,0,108,0,Math.PI*2);wheelPaint.stroke();
+wheelPaint.lineWidth=3;wheelPaint.strokeStyle='#9aa8be';
+wheelPaint.beginPath();wheelPaint.arc(0,0,121,0,Math.PI*2);wheelPaint.stroke();
+wheelPaint.fillStyle='#5e718b';
+wheelPaint.fillRect(-97,-9,194,18);wheelPaint.fillRect(-9,0,18,98);
+const hub=wheelPaint.createRadialGradient(-8,-10,1,0,0,33);
+hub.addColorStop(0,'#91a2b9');hub.addColorStop(1,'#26344d');
+wheelPaint.fillStyle=hub;wheelPaint.beginPath();wheelPaint.arc(0,0,33,0,Math.PI*2);wheelPaint.fill();
+wheelPaint.fillStyle='#72ecff';wheelPaint.fillRect(-6,-120,12,24);
 const cockpit={steer:0,throttle:0,brake:0};
 let wheelGesture=null;
 let paintedSteer=NaN,paintedWheelValue=null;
@@ -233,7 +249,7 @@ async function poll(id) {
 const parked=[{progress:0,lane:-2.8,v:0},{progress:1.1,lane:2.8,v:0}];
 function draw(now){
   if(paintedSteer!==cockpit.steer){
-    wheel.style.setProperty('--wheel-angle',(cockpit.steer*105)+'deg');
+    wheelImage.style.transform='rotate('+(cockpit.steer*105)+'deg) translateZ(0)';
     paintedSteer=cockpit.steer;
     const value=Math.round(cockpit.steer*100);
     if(value!==paintedWheelValue){
@@ -255,6 +271,7 @@ if(invite){
   byId('create').hidden=byId('practice').hidden=true;
 }
 if(supported)requestAnimationFrame(draw);else error('This device could not start WebGL.');
+
 
 
 
