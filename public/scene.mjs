@@ -1,4 +1,4 @@
-import {LENGTH,WIDTH,route,district,halfWidth,TURNS} from './route.mjs';
+import {LENGTH,WIDTH,route,district,halfWidth,TURNS,TRACK_ID} from './route.mjs';
 
 const canvas=document.getElementById('track');
 const gl=canvas.getContext('webgl',{alpha:false,antialias:false,powerPreference:'high-performance'});
@@ -7,6 +7,10 @@ const fx=overlay.getContext('2d');
 overlay.hidden=true;
 const css=(r,g,b)=>[r/255,g/255,b/255];
 const curb=css(134,145,151), road=css(43,48,53), white=css(193,182,152);
+const coast=TRACK_ID==='coast',ridge=TRACK_ID==='ridge';
+const skyColor=coast?[.57,.76,.85]:ridge?[.43,.55,.64]:[.24,.23,.34];
+const fogLow=coast?'vec3(.57,.76,.85)':ridge?'vec3(.43,.55,.64)':'vec3(.23,.22,.33)';
+const fogHigh=coast?'vec3(.78,.83,.81)':ridge?'vec3(.66,.72,.75)':'vec3(.34,.27,.34)';
 const cyan=css(51,200,228), amber=css(255,171,86), glass=css(24,43,58);
 function program(){
   if(!gl)return null;
@@ -30,7 +34,7 @@ function program(){
       float grain=fract(dot(floor(vPos.xz*7.),vec2(.618034,.381966)));
       vec3 color=vColor*(.53+sun*.58+point*.7+grain*.085)+vec3(.36,.43,.64)*shine*.35;
       color+=vGlow*vColor*(.52+.1*sin(uTime*2.));
-      vec3 mist=mix(vec3(.23,.22,.33),vec3(.34,.27,.34),clamp((vPos.y+8.)/100.,0.,1.));
+      vec3 mist=mix(${fogLow},${fogHigh},clamp((vPos.y+8.)/100.,0.,1.));
       gl_FragColor=vec4(mix(color,mist,smoothstep(82.,380.,d)),1.);
     }`;
   const p=gl.createProgram();
@@ -135,11 +139,67 @@ function building(m,x,z,width,depth,height,style,side){
     }
   }
 }
+
+function tree(m,p,palm=false){
+  const h=palm?8:7;
+  m.solid(p.x,p.y,p.z,.5,h,.5,palm?css(130,98,65):css(84,63,44));
+  if(palm){
+    for(let i=0;i<5;i++){
+      const a=i*Math.PI*2/5,dx=Math.cos(a),dz=Math.sin(a);
+      const x=p.x,z=p.z,y=p.y+h;
+      m.quad([x-dz*.55,y,z+dx*.55],[x+dx*4,y-.9,z+dz*4],
+        [x+dx*1.1,y-.5,z+dz*1.1],[x+dz*.55,y,z-dx*.55],css(48,119,67));
+    }
+  }else{
+    m.prism(p.x,p.y+1,p.z,4.3,4.3,.1,.1,7,css(40,83,60));
+    m.prism(p.x,p.y+4,p.z,3.2,3.2,.1,.1,5,css(48,98,70));
+  }
+}
+function landscape(m,start,end){
+  for(let s=start;s<end;s+=20){
+    for(const side of [-1,1]){
+      const inner=route(s,side*13),outer=route(s,side*850);
+      const nextInner=route(s+20,side*13),nextOuter=route(s+20,side*850);
+      const y=coast?-2.2:Math.min(inner.y,nextInner.y)-2;
+      const color=coast?(side>0?css(37,133,165):css(204,183,134)):css(82,101,75);
+      m.quad([inner.x,y,inner.z],[outer.x,y,outer.z],[nextOuter.x,y,nextOuter.z],[nextInner.x,y,nextInner.z],color);
+      // A shoulder ties the raised road to the surrounding terrain.
+      const a=route(s,side*8.8),b=route(s+20,side*8.8);
+      m.quad([a.x,a.y-.1,a.z],[inner.x,y,inner.z],[nextInner.x,y,nextInner.z],[b.x,b.y-.1,b.z],
+        coast?css(202,184,145):css(110,112,89));
+    }
+    if(coast){
+      const p=route(s,-19);tree(m,{...p,y:-1.5},true);
+      // Pale bands make the shoreline visible along the ocean edge.
+      const a=route(s,19),b=route(s+12,19),c=route(s+12,20),d=route(s,20);
+      m.quad([a.x,-2.16,a.z],[b.x,-2.16,b.z],[c.x,-2.16,c.z],[d.x,-2.16,d.z],css(169,214,208));
+    }else{
+      for(const side of [-1,1]){
+        const p=route(s,side*(17+rand()*11));tree(m,{...p,y:p.y-2});
+      }
+    }
+  }
+  if(coast){
+    if(start%240===0){
+      const p=route(start+60,-55);
+      m.solid(p.x,-2,p.z,15,7,13,css(224,216,185));
+      m.prism(p.x,5,p.z,17,15,0,0,4,css(159,83,60));
+    }
+  }else{
+    for(const side of [-1,1]){
+      const p=route(start+70,side*(130+rand()*45)),h=110+rand()*90;
+      m.prism(p.x,-5,p.z,160,220,4,8,h,css(95,112,115));
+      m.prism(p.x,-5+h*.77,p.z,38,52,1,2,h*.23+5,css(219,225,220));
+    }
+    const p=route(start+35,22);
+    m.prism(p.x,p.y-2,p.z,8,10,3,4,6,css(112,105,92));
+  }
+}
 const chunks=[];
 if(shader)for(let start=-120;start<LENGTH+120;start+=120){
   const m=new Mesh();
   const end=start+120,p=route(start+60),a=route(start),b=route(end);
-  m.quad([p.x-900,-1.7,a.z],[p.x+900,-1.7,a.z],[p.x+900,-1.7,b.z],[p.x-900,-1.7,b.z],css(56,60,68));
+  if(coast||ridge)landscape(m,start,end);else m.quad([p.x-900,-1.7,a.z],[p.x+900,-1.7,a.z],[p.x+900,-1.7,b.z],[p.x-900,-1.7,b.z],css(56,60,68));
   for(let s=start;s<end;s+=6){
     strip(m,s,s+6,-WIDTH/2,WIDTH/2,0,road);
     for(const [l,r] of [[-8.7,-8.28],[8.28,8.7]])strip(m,s,s+6,l,r,.08,curb);
@@ -160,7 +220,7 @@ if(shader)for(let start=-120;start<LENGTH+120;start+=120){
         const inner=Math.min(side*8.7,side*13),outer=Math.max(side*8.7,side*13);
         strip(m,s,s+6,inner,outer,-.055,css(88,85,87));
       }
-      if(s>=175&&s%138<17){
+      if(!coast&&!ridge&&s>=175&&s%138<17){
         strip(m,s,s+6,-43,-8.7,-.095,road);
         strip(m,s,s+6,8.7,43,-.095,road);
         if(s%138===0)for(let stripe=0;stripe<15;stripe++){
@@ -169,7 +229,7 @@ if(shader)for(let start=-120;start<LENGTH+120;start+=120){
         }
       }
     }
-    if(elev>3 || s>2840){
+    if(coast||ridge||elev>3 || s>2840){
       for(const lane of [-8.9,8.9]){
         strip(m,s,s+6,lane-.19,lane+.19,.72,curb);
         m.quad(point(s,lane*halfWidth(s)/8.5,.72),point(s,lane*halfWidth(s)/8.5,-.35),point(s+6,lane*halfWidth(s+6)/8.5,-.35),point(s+6,lane*halfWidth(s+6)/8.5,.72),css(94,102,113));
@@ -179,13 +239,13 @@ if(shader)for(let start=-120;start<LENGTH+120;start+=120){
         }
       }
     }
-    if(s%24===0 && s>=0){
+    if(!ridge&&s%(coast?72:24)===0 && s>=0){
       const lamp=route(s,(s%48===0?-1:1)*(halfWidth(s)+1));
       m.solid(lamp.x,lamp.y,lamp.z,.19,6,.19,css(98,103,123));
       m.solid(lamp.x,lamp.y+5.8,lamp.z,.64,.16,1.0,amber,.95);
     }
   }
-  for(let s=start+15;s<end;s+=31)for(const side of [-1,1]){
+  if(!coast&&!ridge)for(let s=start+15;s<end;s+=31)for(const side of [-1,1]){
     const p=route(s,side*(35+rand()*18));
     const industrial=s>2950&&s<3820;
     const height=industrial?9+rand()*19:18+rand()*68;
@@ -224,7 +284,41 @@ function sportsCar(color,variant=0){
   m.solid(0,.48,2.11,.36,.12,.026,metal);
   return m.finish();
 }
-const cars=shader?[sportsCar(css(23,154,203)),sportsCar(css(214,56,88),1),sportsCar(css(223,170,49),2)]:[];
+
+function citroenC3(){
+  const m=new Mesh(),orange=css(237,105,24),dark=css(29,32,35),silver=css(166,177,182);
+  // Compact hatchback proportions, taller cabin and matching orange roof.
+  m.prism(0,.34,0,1.8,3.98,1.76,3.74,.53,orange);
+  m.prism(0,.87,.22,1.67,2.54,1.36,1.84,.64,glass,0,.10);
+  m.solid(0,1.50,.32,1.39,.08,1.91,orange);
+  m.solid(0,.34,1.98,1.79,.23,.19,dark);
+  m.solid(0,.34,-1.98,1.79,.24,.19,dark);
+  m.solid(0,.32,2.09,1.22,.075,.08,silver);
+  m.solid(0,.31,-2.10,1.25,.08,.08,silver);
+  m.solid(0,.94,1.59,1.52,.06,.09,orange);
+  // Rear hatch glass, rear wiper, plate and high brake lamp.
+  m.solid(0,1.11,1.58,.82,.035,.045,dark);
+  m.solid(0,.66,1.94,.48,.13,.035,silver);
+  m.solid(0,1.43,1.29,.39,.045,.05,css(230,41,49),.7);
+  for(const side of [-1,1]){
+    for(const z of [-1.23,1.20])m.tire(side*.84,.38,z);
+    m.solid(side*.86,.40,.02,.09,.23,2.22,dark);
+    m.solid(side*.87,1.06,-.62,.21,.15,.24,dark);
+    m.solid(side*.81,.90,.24,.06,.60,.12,dark);
+    m.solid(side*.86,.91,.58,.045,.065,.19,dark);
+    m.solid(side*.86,.90,-.40,.045,.065,.19,dark);
+    m.solid(side*.65,.83,1.89,.31,.24,.08,css(216,36,47),.8);
+    m.solid(side*.66,.86,-1.89,.37,.055,.10,css(206,226,238),.7);
+    m.solid(side*.66,.59,-2.035,.31,.19,.06,css(217,231,240),.5);
+    // Double chrome chevrons across the front fascia.
+    m.quad([side*.01,.77,-2.022],[side*.23,.67,-2.022],
+      [side*.23,.70,-2.022],[side*.01,.80,-2.022],silver);
+    m.quad([side*.01,.70,-2.024],[side*.23,.60,-2.024],
+      [side*.23,.63,-2.024],[side*.01,.73,-2.024],silver);
+  }
+  return m.finish();
+}
+const cars=shader?[sportsCar(css(23,154,203)),sportsCar(css(214,56,88),1),sportsCar(css(223,170,49),2),citroenC3()]:[];
 const contactShadow=shader?(()=>{
   const m=new Mesh(),shadow=css(27,30,34),edge=css(34,38,43);
   m.quad([-1.07,0,-2.15],[1.07,0,-2.15],[1.02,0,2.16],[-1.02,0,2.16],shadow);
@@ -292,7 +386,7 @@ export function drawRace(players,index,started,now){
   const aspect=canvas.width/canvas.height;
   const own=route(progress,p.lane||0);
   gl.viewport(0,0,canvas.width,canvas.height);
-  gl.clearColor(.24,.23,.34,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+  gl.clearColor(...skyColor,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
   gl.uniformMatrix4fv(uniform.uView,false,view(camera,[target.x,target.y+1.5,target.z],aspect,(aspect<1?.98:.84)+(.14*cameraBoost)));
   gl.uniform3fv(uniform.uEye,camera);gl.uniform3fv(uniform.uLight,[own.x,own.y+2,own.z-7]);gl.uniform1f(uniform.uTime,now/1000);
   for(const chunk of chunks)if(chunk.end>progress-42&&chunk.start<progress+400)draw(chunk.mesh);
@@ -334,6 +428,7 @@ function drawEffects(player,now){
   }
 }
 export {district};
+
 
 
 

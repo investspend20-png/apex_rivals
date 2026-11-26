@@ -42,7 +42,7 @@ carChoice.value=sessionStorage.getItem('apexCar')||'0';
 carChoice.onchange=()=>sessionStorage.setItem('apexCar',carChoice.value);
 trackChoice.onchange=()=>{
  const url=new URL(location.href);url.searchParams.set('track',trackChoice.value);
- location.replaceAll(url.href);
+ location.replace(url.href);
 };
 document.querySelector('.course').textContent=TRACKS.find(t=>t.id===TRACK_ID).name+' / 4.2 KM';
 if(new URL(location.href).searchParams.has('room'))trackChoice.disabled=true;
@@ -174,7 +174,7 @@ async function enter(path,code,practice=false) {
       sessionStorage.setItem('apexResume',JSON.stringify(seat));
       const destination=new URL(location.href);
       destination.searchParams.set('track',seat.track);destination.searchParams.set('room',seat.code);
-      location.replaceAll(destination.href);return;
+      location.replace(destination.href);return;
     }
     const url=new URL(location.href);url.searchParams.set('room',seat.code);
     byId('invite').value=url.href;if(!practice)history.replaceState(null,'',url);
@@ -320,3 +320,4 @@ if(resume){
   byId('invite').value=link.href;poll(++generation);
  }
 }
+

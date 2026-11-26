@@ -34,7 +34,7 @@ function resetRoom(room) {
   room.players.forEach((p, i) => { if (p) resetPlayer(p, i); });
 }
 const trackId=value=>['metro','coast','ridge'].includes(value)?value:'metro';
-const carId=value=>Number.isInteger(value)&&value>=0&&value<3?value:0;
+const carId=value=>Number.isInteger(value)&&value>=0&&value<4?value:0;
 function snapshot(p) {
   if (!p) return null;
   const {lane, v, progress, ready, rematch, boost, nitro, slip, drifting, headingError, scraping, car} = p;

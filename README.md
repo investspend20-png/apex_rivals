@@ -1,6 +1,6 @@
 # Apex Rivals Online
 
-Render deployment package for the Apex Rivals 2.4.0 Android APK. It serves the Metro Sprint game screen and runs the two-player race simulation, including the analog steering wheel, pedals, drift, and nitro.
+Render deployment package for the Apex Rivals 2.4.2 Android APK. It serves the Metro Sprint game screen and runs the two-player race simulation, including the analog steering wheel, pedals, drift, and nitro.
 
 ## Deploy to Render
 
@@ -16,7 +16,7 @@ For an existing deployment, replace the old server files with the contents of th
 
 ## Play from different networks
 
-1. On the host phone, open Apex Rivals 2.4.0 and tap **Open invite**. Paste the Render HTTPS address with no room code and tap **Join**. The hosted game screen opens in the APK.
+1. On the host phone, open Apex Rivals 2.4.2 and tap **Open invite**. Paste the Render HTTPS address with no room code and tap **Join**. The hosted game screen opens in the APK.
 2. Tap **Create race**, then **Share**. Send that HTTPS room link to the other player.
 3. The second player opens the APK, taps **Open invite**, and pastes the full room link. Tap **Join**, then **Join race** when the room screen opens. Both players tap **Ready**.
 
