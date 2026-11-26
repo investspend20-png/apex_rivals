@@ -5,7 +5,7 @@ export class LocalDriver{
   constructor(){this.reset();}
   reset(){
     this.car=null;this.history=[];this.last=null;this.received=0;this.start=0;
-    this.error={progress:0,lane:0,headingError:0};
+    this.error={progress:0,lane:0,headingError:0,slip:0,v:0};
   }
   reconcile(state,received,sent){
     const snapshot=state.players[state.index];
@@ -22,7 +22,7 @@ export class LocalDriver{
     }
     if(former&&Math.abs(former.progress-this.car.progress)<65){
       for(const field of Object.keys(this.error))this.error[field]+=former[field]-this.car[field];
-    }else this.error={progress:0,lane:0,headingError:0};
+    }else this.error={progress:0,lane:0,headingError:0,slip:0,v:0};
     if(this.last===null)this.last=received;
   }
   render(now,input,active){
@@ -39,12 +39,24 @@ export class LocalDriver{
       this.history=this.history.filter(frame=>now-frame.end<1600);
     }
     const pose={...this.car};
-    const decay=Math.exp(-elapsed*9);
+    // Keep a network correction from briefly cancelling forward movement or
+    // snapping the body's heading while the player is steering.
+    const decay=Math.exp(-elapsed*6);
+    const limits={
+      progress:Math.max(.5,this.car.v*.12),
+      lane:2.4,
+      headingError:.55,
+      slip:.55,
+      v:14
+    };
     for(const field of Object.keys(this.error)){
-      this.error[field]*=decay;
+      const requested=this.error[field]*(1-decay);
+      const maximum=limits[field]*elapsed;
+      this.error[field]-=Math.max(-maximum,Math.min(maximum,requested));
       pose[field]+=this.error[field];
     }
     for(const field of numeric)if(!Number.isFinite(pose[field]))return null;
     return pose;
   }
 }
+
