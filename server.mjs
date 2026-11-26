@@ -107,7 +107,7 @@ setInterval(() => {
     if (!room.start || now < room.start || room.winner !== null) continue;
     for (const [index, player] of room.players.entries()) {
       if (!player) continue;
-      drive(player, now - player.seen < 500, dt);
+      drive(player, now - player.seen < 1100, dt);
       if (player.progress >= LENGTH) {
         room.winner = index;
         room.finished = now;
@@ -158,6 +158,7 @@ server.requestTimeout = 10000;
 server.listen(Number(process.env.PORT || 3000), '0.0.0.0', () => {
   console.log('Apex Rivals listening on port ' + server.address().port);
 });
+
 
 
 

@@ -212,20 +212,23 @@ function update() {
 }
 async function poll(id) {
   if(id!==generation||!seat) return;
+  const requestStarted=performance.now();
   const sent=action;
   try {
     const next=await post('/tick',{...seat,action:sent,keys:keyboard|reduceKeys(pointers.values()),...cockpit});
     if(id!==generation) return;
     if(action===sent) action='';
     if(state?.start!==next.start||next.winner!==state?.winner)motion.reset();
-    motion.push(next,performance.now());
+    motion.push(next,performance.now(),requestStarted);
     state=next;error();update();
   } catch(e){
     if(id!==generation) return;
     if(e.status===404||e.status===403){showSetup(false);error(e.message);return;}
     error('Reconnecting to race…');
   }
-  setTimeout(()=>poll(id),state?.start&&state.winner===null?45:280);
+  const racing=state?.start&&state.winner===null;
+  const interval=racing?(state.practice?48:55):280;
+  setTimeout(()=>poll(id),Math.max(0,interval-(performance.now()-requestStarted)));
 }
 const parked=[{progress:0,lane:-2.8,v:0},{progress:1.1,lane:2.8,v:0}];
 function draw(now){
@@ -243,6 +246,7 @@ if(invite){
   byId('create').hidden=byId('practice').hidden=true;
 }
 if(supported)requestAnimationFrame(draw);else error('This device could not start WebGL.');
+
 
 
 
