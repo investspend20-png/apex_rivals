@@ -20,11 +20,11 @@ const reduceKeys=values=>Array.from(values).reduce((mask,key)=>mask|key,0);
 const wheel=byId('wheel');
 const cockpit={steer:0,throttle:0,brake:0};
 let wheelGesture=null;
+let paintedSteer=NaN,paintedWheelValue=null;
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 function steer(value){
   cockpit.steer=clamp(value,-1,1);
-  wheel.style.setProperty('--wheel-angle',(cockpit.steer*105)+'deg');
-  wheel.setAttribute('aria-valuenow',Math.round(cockpit.steer*100));
+
 }
 function wheelAngle(event,gesture){
   return Math.atan2(event.clientY-gesture.y,event.clientX-gesture.x);
@@ -232,6 +232,15 @@ async function poll(id) {
 }
 const parked=[{progress:0,lane:-2.8,v:0},{progress:1.1,lane:2.8,v:0}];
 function draw(now){
+  if(paintedSteer!==cockpit.steer){
+    wheel.style.setProperty('--wheel-angle',(cockpit.steer*105)+'deg');
+    paintedSteer=cockpit.steer;
+    const value=Math.round(cockpit.steer*100);
+    if(value!==paintedWheelValue){
+      wheel.setAttribute('aria-valuenow',value);
+      paintedWheelValue=value;
+    }
+  }
   const players=motion.render(now)||parked;
   const index=state?.index??0;
   drawRace(players,index,Boolean(state?.start),now);
@@ -246,6 +255,7 @@ if(invite){
   byId('create').hidden=byId('practice').hidden=true;
 }
 if(supported)requestAnimationFrame(draw);else error('This device could not start WebGL.');
+
 
 
 
