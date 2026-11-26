@@ -1,4 +1,6 @@
 import http from 'node:http';
+import {voiceSignal,voiceIceServers} from './voice-server.mjs';
+const iceServers=voiceIceServers(process.env);
 import {randomBytes} from 'node:crypto';
 import {readFile} from 'node:fs/promises';
 import {LENGTH} from './public/route.mjs';
@@ -14,6 +16,7 @@ for (const [url, name, type] of [
   ['/minimap.mjs', 'minimap.mjs', 'text/javascript'],
   ['/prediction.mjs', 'prediction.mjs', 'text/javascript'],
   ['/driving.mjs', 'driving.mjs', 'text/javascript'],
+  ['/voice.mjs','voice.mjs','text/javascript'],
   ['/style.css', 'style.css', 'text/css']
 ]) {
   files.set(url, {data: await readFile(new URL('./public/' + name, import.meta.url)), type});
@@ -68,6 +71,10 @@ function handleRace(path, data) {
     return ok({code, token: room.players[index].token,track:room.track});
   }
   if (index === -1) return error(403, 'Your seat expired. Join the room again.');
+  if(path==='/voice'){
+    if(room.practice)return error(409,'Voice is available in two-player rooms');
+    return voiceSignal(room,index,data,iceServers);
+  }
   const player = room.players[index];
   if (data.action === 'leave') {
     room.players[index] = null;
@@ -135,14 +142,14 @@ async function readBody(req) {
   let data = '', size = 0;
   for await (const chunk of req) {
     size += chunk.length;
-    if (size <= 4096) data += chunk;
+    if (size <= 131072) data += chunk;
   }
-  if (size > 4096) throw new Error('Request too large');
+  if (size > 131072) throw new Error('Request too large');
   const value = JSON.parse(data);
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Invalid request');
   return value;
 }
-const api = new Set(['/create', '/join', '/tick']);
+const api = new Set(['/create', '/join', '/tick', '/voice']);
 const server = http.createServer(async (req, res) => {
   const path = req.url.split('?')[0];
   if (req.method === 'GET' || req.method === 'HEAD') {

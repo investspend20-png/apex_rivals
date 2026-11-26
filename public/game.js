@@ -3,6 +3,7 @@ import {LENGTH,turnCue,TRACK_ID,TRACKS} from './route.mjs';
 import {RaceMotion} from './motion.mjs';
 import {makeMinimap} from './minimap.mjs';
 import {LocalDriver} from './prediction.mjs';
+import {RoomVoice} from './voice.mjs';
 
 const byId = id => document.getElementById(id);
 const arena = document.querySelector('.arena');
@@ -10,6 +11,7 @@ const hud = document.querySelector('.hud');
 const touch = document.querySelector('.touch');
 const motion=new RaceMotion();
 const localDriver=new LocalDriver();
+const voice=new RoomVoice(byId('mic'),byId('voiceStatus'));
 const raceMap=byId('raceMap');
 const updateMap=makeMinimap(byId('minimap'));
 const timeLabel = ms => {
@@ -150,6 +152,7 @@ async function post(path,data) {
   return json;
 }
 function showSetup(clearInvite=true) {
+  voice.stop();voice.room(null,false);byId('voiceControls').hidden=true;
   document.body.classList.remove('driving');
   generation++; seat=null; state=null;motion.reset();localDriver.reset();action='';clearControls();
   if(clearInvite) {
@@ -209,6 +212,7 @@ function label(id,value){
 function update() {
   const {index,players,start,winner,practice,finished,now}=state;
   const me=players[index], other=players[1-index];
+  byId('voiceControls').hidden=practice;voice.room(seat,practice);
   const racing=Boolean(start)&&winner===null;
   const ended=winner!==null;
   arena.classList.toggle('racing',racing);
