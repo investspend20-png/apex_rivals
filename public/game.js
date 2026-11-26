@@ -1,5 +1,5 @@
 import {drawRace,district,supported} from './scene.mjs';
-import {LENGTH,turnCue} from './route.mjs';
+import {LENGTH,turnCue,TRACK_ID,TRACKS} from './route.mjs';
 import {RaceMotion} from './motion.mjs';
 import {makeMinimap} from './minimap.mjs';
 import {LocalDriver} from './prediction.mjs';
@@ -36,6 +36,16 @@ const hub=wheelPaint.createRadialGradient(-8,-10,1,0,0,33);
 hub.addColorStop(0,'#91a2b9');hub.addColorStop(1,'#26344d');
 wheelPaint.fillStyle=hub;wheelPaint.beginPath();wheelPaint.arc(0,0,33,0,Math.PI*2);wheelPaint.fill();
 wheelPaint.fillStyle='#72ecff';wheelPaint.fillRect(-6,-120,12,24);
+const trackChoice=byId('trackChoice'),carChoice=byId('carChoice');
+trackChoice.value=TRACK_ID;
+carChoice.value=sessionStorage.getItem('apexCar')||'0';
+carChoice.onchange=()=>sessionStorage.setItem('apexCar',carChoice.value);
+trackChoice.onchange=()=>{
+ const url=new URL(location.href);url.searchParams.set('track',trackChoice.value);
+ location.replaceAll(url.href);
+};
+document.querySelector('.course').textContent=TRACKS.find(t=>t.id===TRACK_ID).name+' / 4.2 KM';
+if(new URL(location.href).searchParams.has('room'))trackChoice.disabled=true;
 const cockpit={steer:0,throttle:0,brake:0};
 let wheelGesture=null;
 let paintedSteer=NaN,paintedWheelValue=null;
@@ -159,7 +169,13 @@ async function enter(path,code,practice=false) {
   if(busy) return;
   busy=true;error();byId('practice').disabled=byId('create').disabled=byId('joinButton').disabled=true;
   try {
-    seat=await post(path,{code,practice});
+    seat=await post(path,{code,practice,track:TRACK_ID,car:Number(carChoice.value)});
+    if(seat.track&&seat.track!==TRACK_ID){
+      sessionStorage.setItem('apexResume',JSON.stringify(seat));
+      const destination=new URL(location.href);
+      destination.searchParams.set('track',seat.track);destination.searchParams.set('room',seat.code);
+      location.replaceAll(destination.href);return;
+    }
     const url=new URL(location.href);url.searchParams.set('room',seat.code);
     byId('invite').value=url.href;if(!practice)history.replaceState(null,'',url);
     byId('setup').hidden=true;byId('lobby').hidden=false;
@@ -262,6 +278,7 @@ function draw(now){
     }
   }
   const players=[...(motion.render(now)||parked)];
+  if(!state)players[0]={...players[0],car:Number(carChoice.value)};
   const index=state?.index??0;
   const predicted=localDriver.render(now,{keys:keyboard|reduceKeys(pointers.values()),...cockpit},
     Boolean(state?.start)&&state.winner===null);
@@ -293,3 +310,13 @@ if(supported)requestAnimationFrame(draw);else error('This device could not start
 
 
 
+
+const resume=JSON.parse(sessionStorage.getItem('apexResume')||'null');
+if(resume){
+ sessionStorage.removeItem('apexResume');
+ if(resume.track===TRACK_ID){
+  seat=resume;byId('setup').hidden=true;byId('lobby').hidden=false;
+  const link=new URL(location.href);link.searchParams.set('room',seat.code);
+  byId('invite').value=link.href;poll(++generation);
+ }
+}

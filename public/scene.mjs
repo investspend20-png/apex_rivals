@@ -201,10 +201,10 @@ if(shader)for(let start=-120;start<LENGTH+120;start+=120){
   }
   chunks.push({start,end,mesh:m.finish()});
 }
-function sportsCar(color){
+function sportsCar(color,variant=0){
   const m=new Mesh(),rubber=css(26,28,34),metal=css(172,181,192);
   m.prism(0,.26,0,1.88,4.2,1.84,3.96,.45,color);
-  m.prism(0,.69,-.04,1.67,2.02,1.25,1.15,.47,glass,0,.08);
+  m.prism(0,.69,-.04,1.67,variant===2?1.45:2.02,1.25,variant===2?.8:1.15,variant===1?.57:.47,glass,0,.08);
   m.solid(0,1.15,.02,1.25,.065,1.11,color);
   m.prism(0,.29,2.04,1.83,.32,1.61,.29,.26,rubber);
   m.solid(0,.7,1.98,1.35,.055,.25,color);
@@ -224,7 +224,7 @@ function sportsCar(color){
   m.solid(0,.48,2.11,.36,.12,.026,metal);
   return m.finish();
 }
-const cars=shader?[sportsCar(css(23,154,203)),sportsCar(css(214,56,88))]:[];
+const cars=shader?[sportsCar(css(23,154,203)),sportsCar(css(214,56,88),1),sportsCar(css(223,170,49),2)]:[];
 const contactShadow=shader?(()=>{
   const m=new Mesh(),shadow=css(27,30,34),edge=css(34,38,43);
   m.quad([-1.07,0,-2.15],[1.07,0,-2.15],[1.02,0,2.16],[-1.02,0,2.16],shadow);
@@ -301,7 +301,7 @@ export function drawRace(players,index,started,now){
     const q=route(player.progress||0,player.lane||0);
     const yaw=q.heading-(player.headingError||0)-(player.slip||0)*.65;
     draw(contactShadow,model(q.x,q.y+.018,q.z,q.heading));
-    draw(cars[i===index?0:1],model(q.x,q.y+.035,q.z,yaw));
+    draw(cars[player.car??(i===index?0:1)],model(q.x,q.y+.035,q.z,yaw));
     if(player.nitro)for(const side of [-1,1]){
       const x=side*.62,z=2.43+Math.sin(now*.047)*.15;
       draw(flame,model(q.x+x*Math.cos(yaw)+z*Math.sin(yaw),q.y+.29,q.z-x*Math.sin(yaw)+z*Math.cos(yaw),yaw));

@@ -32,7 +32,7 @@ export function drive(p, active, dt) {
 
   const grip = p.drifting ? 10.5 : 18;
   const steeringRate = Math.min(1.32, grip / Math.max(p.v, 8)) * Math.min(1, p.v / 6);
-  const roadTurn = curvatureAt(p.progress);
+  const roadTurn = curvatureAt(p.progress,p.track);
   const slipTarget = p.drifting ? direction * .23 : 0;
   p.slip += (slipTarget - p.slip) * Math.min(1, dt * 5);
 

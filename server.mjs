@@ -33,10 +33,12 @@ function resetRoom(room) {
   Object.assign(room, {start: 0, finished: 0, winner: null});
   room.players.forEach((p, i) => { if (p) resetPlayer(p, i); });
 }
+const trackId=value=>['metro','coast','ridge'].includes(value)?value:'metro';
+const carId=value=>Number.isInteger(value)&&value>=0&&value<3?value:0;
 function snapshot(p) {
   if (!p) return null;
-  const {lane, v, progress, ready, rematch, boost, nitro, slip, drifting, headingError, scraping} = p;
-  return {lane, v, progress, ready, rematch, boost, nitro, slip, drifting, headingError, scraping};
+  const {lane, v, progress, ready, rematch, boost, nitro, slip, drifting, headingError, scraping, car} = p;
+  return {lane, v, progress, ready, rematch, boost, nitro, slip, drifting, headingError, scraping, car};
 }
 function handleRace(path, data) {
   const now = Date.now();
@@ -45,8 +47,9 @@ function handleRace(path, data) {
     let code;
     do { code = hex(5); } while (rooms.has(code));
     const player = newPlayer(0, now);
-    rooms.set(code, {players: [player, null], practice: data.practice === true, start: 0, finished: 0, winner: null});
-    return ok({code, token: player.token});
+    const track=trackId(data.track);player.track=track;player.car=carId(data.car);
+    rooms.set(code, {players: [player, null], track, practice: data.practice === true, start: 0, finished: 0, winner: null});
+    return ok({code, token: player.token,track});
   }
   const code = typeof data.code === 'string' ? data.code.toUpperCase() : '';
   const room = rooms.get(code);
@@ -59,9 +62,10 @@ function handleRace(path, data) {
       index = room.players.indexOf(null);
       if (index === -1) return error(409, 'Both seats in this room are taken.');
       room.players[index] = newPlayer(index, now);
+      room.players[index].track=room.track;room.players[index].car=carId(data.car);
     }
     room.players[index].seen = now;
-    return ok({code, token: room.players[index].token});
+    return ok({code, token: room.players[index].token,track:room.track});
   }
   if (index === -1) return error(403, 'Your seat expired. Join the room again.');
   const player = room.players[index];
@@ -87,7 +91,7 @@ function handleRace(path, data) {
     room.start = now + 3000;
   }
   const {start, winner, finished, practice} = room;
-  return ok({index, start, winner, finished, practice, now, players: room.players.map(snapshot)});
+  return ok({index, start, winner, finished, practice, track:room.track, now, players: room.players.map(snapshot)});
 }
 
 let lastTick = performance.now();

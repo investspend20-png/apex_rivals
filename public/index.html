@@ -14,6 +14,10 @@
 <div class="panel" id="setup">
 <h2 id="setupTitle">Race a friend</h2>
 <p id="intro">Create a room and share the invite with a friend.</p>
+<label for="trackChoice">Track</label>
+<select id="trackChoice"><option value="metro">Metro Sprint · City streets</option><option value="coast">Coastal Run · Wide sweeping bends</option><option value="ridge">Ridge Pass · Tight elevated turns</option></select>
+<label for="carChoice">Your car</label>
+<select id="carChoice"><option value="0">Velocity · Cyan coupe</option><option value="1">Ember · Red sport coupe</option><option value="2">Spectre · Gold roadster</option></select>
 <div class="row"><button class="primary" id="create">Create race</button><button id="practice">Solo practice</button></div>
 <form id="join"><label for="code">Room code</label><div class="row"><input id="code" maxlength="10" placeholder="Enter invite code" required autocomplete="off" spellcheck="false"><button id="joinButton">Join race</button></div></form><p><a href="apexrivals://paste">Open invite link</a></p>
 </div>
