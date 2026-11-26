@@ -2,12 +2,14 @@ import {drawRace,district,supported} from './scene.mjs';
 import {LENGTH,turnCue} from './route.mjs';
 import {RaceMotion} from './motion.mjs';
 import {makeMinimap} from './minimap.mjs';
+import {LocalDriver} from './prediction.mjs';
 
 const byId = id => document.getElementById(id);
 const arena = document.querySelector('.arena');
 const hud = document.querySelector('.hud');
 const touch = document.querySelector('.touch');
 const motion=new RaceMotion();
+const localDriver=new LocalDriver();
 const raceMap=byId('raceMap');
 const updateMap=makeMinimap(byId('minimap'));
 const timeLabel = ms => {
@@ -139,7 +141,7 @@ async function post(path,data) {
 }
 function showSetup(clearInvite=true) {
   document.body.classList.remove('driving');
-  generation++; seat=null; state=null;motion.reset();action='';clearControls();
+  generation++; seat=null; state=null;motion.reset();localDriver.reset();action='';clearControls();
   if(clearInvite) {
     history.replaceState(null,'',location.pathname);
     byId('setupTitle').textContent='Race a friend';
@@ -234,8 +236,10 @@ async function poll(id) {
     const next=await post('/tick',{...seat,action:sent,keys:keyboard|reduceKeys(pointers.values()),...cockpit});
     if(id!==generation) return;
     if(action===sent) action='';
-    if(state?.start!==next.start||next.winner!==state?.winner)motion.reset();
-    motion.push(next,performance.now(),requestStarted);
+    if(state?.start!==next.start||next.winner!==state?.winner){motion.reset();localDriver.reset();}
+    const received=performance.now();
+    motion.push(next,received,requestStarted);
+    localDriver.reconcile(next,received,requestStarted);
     state=next;error();update();
   } catch(e){
     if(id!==generation) return;
@@ -257,8 +261,14 @@ function draw(now){
       paintedWheelValue=value;
     }
   }
-  const players=motion.render(now)||parked;
+  const players=[...(motion.render(now)||parked)];
   const index=state?.index??0;
+  const predicted=localDriver.render(now,{keys:keyboard|reduceKeys(pointers.values()),...cockpit},
+    Boolean(state?.start)&&state.winner===null);
+  if(predicted&&state?.winner===null){
+    players[index]=predicted;
+    label('speed',Math.round(predicted.v*3.6)+' km/h');
+  }
   drawRace(players,index,Boolean(state?.start),now);
   if(!raceMap.hidden)updateMap(players,index,now);
   requestAnimationFrame(draw);
@@ -271,6 +281,7 @@ if(invite){
   byId('create').hidden=byId('practice').hidden=true;
 }
 if(supported)requestAnimationFrame(draw);else error('This device could not start WebGL.');
+
 
 
 
