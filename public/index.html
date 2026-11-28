@@ -6,7 +6,7 @@
 </head>
 <body>
 <main>
-<header><div><p class="series">CITY STREET RACING</p><h1>APEX<span> RIVALS</span></h1></div><span class="course">METRO SPRINT <b> / </b> 4.2 KM</span></header>
+<header><div><p class="series">CITY STREET RACING</p><h1>APEX<span> RIVALS</span></h1></div><button id="soundToggle" aria-pressed="true">Sound on</button><span class="course">METRO SPRINT <b> / </b> 4.2 KM</span></header>
 <section class="arena" aria-label="Race track">
 <div class="view"><canvas id="track" width="900" height="540" aria-label="3D city racing view"></canvas><canvas id="effects" aria-hidden="true"></canvas></div>
 <div class="hud" hidden><div class="routeHUD"><strong id="district">Arts District</strong><span id="distance">4.20 km left</span><progress id="routeProgress" max="4200" value="0" aria-label="Course progress"></progress><span id="position"></span><button id="exit">Exit race</button></div><div class="telemetry"><span id="speed">0 km/h</span><label for="boost">NITRO</label><progress id="boost" max="100" value="100"></progress><strong id="driftState"></strong></div></div>
@@ -23,7 +23,7 @@
 </div>
 <div class="panel" id="lobby" hidden>
 <h2 id="roomTitle">Race lobby</h2><p id="status" role="status"></p>
-<div id="sharing"><label for="invite">Invite link</label><div class="row"><input id="invite" readonly><button id="copy">Share</button></div></div>
+<div id="results" hidden></div><p id="personalBest"></p><div id="sharing"><label for="invite">Invite link</label><div class="row"><input id="invite" readonly><button id="copy">Share</button></div></div>
 <div class="row actions"><button class="primary" id="ready">Ready</button><button id="leave">Leave</button></div>
 </div>
 </section>

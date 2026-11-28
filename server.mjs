@@ -16,6 +16,7 @@ for (const [url, name, type] of [
   ['/minimap.mjs', 'minimap.mjs', 'text/javascript'],
   ['/prediction.mjs', 'prediction.mjs', 'text/javascript'],
   ['/driving.mjs', 'driving.mjs', 'text/javascript'],
+  ['/audio.mjs','audio.mjs','text/javascript'],
   ['/voice.mjs','voice.mjs','text/javascript'],
   ['/style.css', 'style.css', 'text/css']
 ]) {

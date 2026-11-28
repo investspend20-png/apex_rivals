@@ -4,6 +4,7 @@ import {RaceMotion} from './motion.mjs';
 import {makeMinimap} from './minimap.mjs';
 import {LocalDriver} from './prediction.mjs';
 import {RoomVoice} from './voice.mjs';
+import {RaceAudio} from './audio.mjs';
 
 const byId = id => document.getElementById(id);
 const arena = document.querySelector('.arena');
@@ -11,6 +12,11 @@ const hud = document.querySelector('.hud');
 const touch = document.querySelector('.touch');
 const motion=new RaceMotion();
 const localDriver=new LocalDriver();
+const raceAudio=new RaceAudio(byId('soundToggle'));
+let resultStart=null,peakSpeed=0,driftSeconds=0,lastStatsFrame=null;
+const bestKey='apexBestV1:'+TRACK_ID;
+function getBest(){try{const n=Number(localStorage.getItem(bestKey));return n>0?n:null;}catch{return null;}}
+function showBest(){const best=getBest();byId('personalBest').textContent=best?'Your best finish · '+timeLabel(best):'Complete a sprint to set your first best time.';}
 const voice=new RoomVoice(byId('mic'),byId('voiceStatus'));
 const raceMap=byId('raceMap');
 const updateMap=makeMinimap(byId('minimap'));
@@ -152,6 +158,7 @@ async function post(path,data) {
   return json;
 }
 function showSetup(clearInvite=true) {
+  raceAudio.silence();byId('results').hidden=true;
   voice.stop();voice.room(null,false);byId('voiceControls').hidden=true;
   document.body.classList.remove('driving');
   generation++; seat=null; state=null;motion.reset();localDriver.reset();action='';clearControls();
@@ -215,6 +222,35 @@ function update() {
   byId('voiceControls').hidden=practice;voice.room(seat,practice);
   const racing=Boolean(start)&&winner===null;
   const ended=winner!==null;
+  if(start!==resultStart){
+    resultStart=start;peakSpeed=0;driftSeconds=0;lastStatsFrame=null;
+    byId('results').hidden=true;
+  }
+  if(ended&&!byId('results').dataset.done){
+    const won=winner===index;
+    const duration=finished-start;
+    let personal='';
+    if(won){
+      const old=getBest();
+      if(!old||duration<old){
+        try{localStorage.setItem(bestKey,String(duration));personal='New personal best';}catch{}
+      }
+    }
+    const rows=[
+      ['Race time',timeLabel(duration)],
+      ['Your result',won?(practice?'Finished':'1st'):'2nd · '+((LENGTH-me.progress)/1000).toFixed(2)+' km remaining'],
+      ['Your top speed',Math.round(peakSpeed*3.6)+' km/h'],
+      ['Your drift time',driftSeconds.toFixed(1)+' s']
+    ];
+    const box=byId('results');box.replaceChildren();
+    for(const [name,value] of rows){
+      const row=document.createElement('div'),label=document.createElement('span'),text=document.createElement('strong');
+      label.textContent=name;text.textContent=value;row.append(label,text);box.append(row);
+    }
+    if(personal){const text=document.createElement('p');text.textContent=personal;box.append(text);}
+    box.hidden=false;box.dataset.done='yes';showBest();
+  }
+  if(!ended)delete byId('results').dataset.done;
   arena.classList.toggle('racing',racing);
   document.body.classList.toggle('driving',racing);
   byId('lobby').hidden=racing;
@@ -290,6 +326,14 @@ function draw(now){
     players[index]=predicted;
     label('speed',Math.round(predicted.v*3.6)+' km/h');
   }
+  const active=Boolean(state?.start)&&state.winner===null&&state.now>=state.start;
+  const car=players[index];
+  raceAudio.update(car,active,cockpit.throttle||Number(Boolean(keyboard&1)));
+  if(active){
+    peakSpeed=Math.max(peakSpeed,car.v||0);
+    if(lastStatsFrame!==null&&car.drifting)driftSeconds+=Math.min(.1,(now-lastStatsFrame)/1000);
+    lastStatsFrame=now;
+  }else lastStatsFrame=null;
   drawRace(players,index,Boolean(state?.start),now);
   if(!raceMap.hidden)updateMap(players,index,now);
   requestAnimationFrame(draw);
@@ -325,3 +369,5 @@ if(resume){
  }
 }
 
+
+showBest();
