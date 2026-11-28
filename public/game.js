@@ -5,6 +5,7 @@ import {makeMinimap} from './minimap.mjs';
 import {LocalDriver} from './prediction.mjs';
 import {RoomVoice} from './voice.mjs';
 import {RaceAudio} from './audio.mjs';
+import {OnlineLobby} from './online.mjs';
 
 const byId = id => document.getElementById(id);
 const arena = document.querySelector('.arena');
@@ -54,6 +55,28 @@ trackChoice.onchange=()=>{
 };
 document.querySelector('.course').textContent=TRACKS.find(t=>t.id===TRACK_ID).name+' / 4.2 KM';
 if(new URL(location.href).searchParams.has('room'))trackChoice.disabled=true;
+
+async function enterMatchedSeat(match){
+ if(match.track!==TRACK_ID){
+  sessionStorage.setItem('apexResume',JSON.stringify(match));
+  const destination=new URL(location.href);
+  destination.searchParams.set('track',match.track);destination.searchParams.set('room',match.code);
+  location.replace(destination.href);return;
+ }
+ if(seat&&seat.token!==match.token)await post('/tick',{...seat,action:'leave'}).catch(()=>{});
+ voice.stop();motion.reset();localDriver.reset();clearControls();
+ seat=match;state=null;action='ready';
+ const link=new URL(location.href);link.searchParams.set('room',seat.code);link.searchParams.set('track',TRACK_ID);
+ history.replaceState(null,'',link);byId('invite').value=link.href;
+ byId('setup').hidden=true;byId('lobby').hidden=false;byId('sharing').hidden=false;
+ byId('roomTitle').textContent='Loading match';byId('status').textContent='Waiting for both players to load…';
+ byId('onlinePanel').hidden=true;
+ poll(++generation);
+}
+const online=new OnlineLobby({
+ button:byId('onlineButton'),panel:byId('onlinePanel'),track:()=>TRACK_ID,car:()=>Number(carChoice.value),
+ join:enterMatchedSeat,currentSeat:()=>seat
+});
 const cockpit={steer:0,throttle:0,brake:0};
 let wheelGesture=null;
 let paintedSteer=NaN,paintedWheelValue=null;
@@ -158,12 +181,13 @@ async function post(path,data) {
   return json;
 }
 function showSetup(clearInvite=true) {
-  raceAudio.silence();byId('results').hidden=true;
+  online.activity(null);raceAudio.silence();byId('results').hidden=true;
   voice.stop();voice.room(null,false);byId('voiceControls').hidden=true;
   document.body.classList.remove('driving');
   generation++; seat=null; state=null;motion.reset();localDriver.reset();action='';clearControls();
   if(clearInvite) {
-    history.replaceState(null,'',location.pathname);
+    const home=new URL(location.href);home.searchParams.delete('room');home.searchParams.set('track',TRACK_ID);
+    history.replaceState(null,'',home);trackChoice.disabled=false;
     byId('setupTitle').textContent='Race a friend';
     byId('intro').textContent='Create a room and share the invite with a friend.';
     byId('create').hidden=byId('practice').hidden=false;
@@ -186,6 +210,7 @@ async function enter(path,code,practice=false) {
       destination.searchParams.set('track',seat.track);destination.searchParams.set('room',seat.code);
       location.replace(destination.href);return;
     }
+    online.activity(seat);
     const url=new URL(location.href);url.searchParams.set('room',seat.code);
     byId('invite').value=url.href;if(!practice)history.replaceState(null,'',url);
     byId('setup').hidden=true;byId('lobby').hidden=false;
@@ -363,7 +388,7 @@ const resume=JSON.parse(sessionStorage.getItem('apexResume')||'null');
 if(resume){
  sessionStorage.removeItem('apexResume');
  if(resume.track===TRACK_ID){
-  seat=resume;byId('setup').hidden=true;byId('lobby').hidden=false;
+  seat=resume;if(resume.autoReady)action='ready';byId('setup').hidden=true;byId('lobby').hidden=false;
   const link=new URL(location.href);link.searchParams.set('room',seat.code);
   byId('invite').value=link.href;poll(++generation);
  }
@@ -371,3 +396,5 @@ if(resume){
 
 
 showBest();
+
+try{if(location.protocol==='https:'&&localStorage.getItem('apexPlayerToken'))online.connect();}catch{}

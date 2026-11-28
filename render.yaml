@@ -3,7 +3,11 @@ services:
     name: apex-rivals-online
     runtime: node
     plan: free
-    buildCommand: node --check server.mjs
+    buildCommand: npm ci --omit=dev && node --check server.mjs
     startCommand: node server.mjs
     healthCheckPath: /health
 
+
+    envVars:
+      - key: PLAYER_SECRET
+        generateValue: true

@@ -1,4 +1,5 @@
 import http from 'node:http';
+import {attachLobby} from './lobby-server.mjs';
 import {voiceSignal,voiceIceServers} from './voice-server.mjs';
 const iceServers=voiceIceServers(process.env);
 import {randomBytes} from 'node:crypto';
@@ -16,6 +17,7 @@ for (const [url, name, type] of [
   ['/minimap.mjs', 'minimap.mjs', 'text/javascript'],
   ['/prediction.mjs', 'prediction.mjs', 'text/javascript'],
   ['/driving.mjs', 'driving.mjs', 'text/javascript'],
+  ['/online.mjs','online.mjs','text/javascript'],
   ['/audio.mjs','audio.mjs','text/javascript'],
   ['/voice.mjs','voice.mjs','text/javascript'],
   ['/style.css', 'style.css', 'text/css']
@@ -167,6 +169,19 @@ const server = http.createServer(async (req, res) => {
     catch { result = error(400, 'Invalid race request.'); }
   }
   send(res, result.status, 'application/json', JSON.stringify(result.body));
+});
+
+attachLobby(server,{
+ secret:process.env.PLAYER_SECRET||randomBytes(32).toString('hex'),
+ validSeat(seat){const room=rooms.get(seat?.code);return Boolean(room?.players.some(p=>p?.token===seat?.token));},
+ leaveSeat(seat){handleRace('/tick',{...seat,action:'leave'});},
+ createMatch(track,hostCar,guestCar){
+   const host=handleRace('/create',{track,car:hostCar});
+   if(host.status!==200)throw Error(host.body.error);
+   const guest=handleRace('/join',{code:host.body.code,car:guestCar});
+   if(guest.status!==200){handleRace('/tick',{...host.body,action:'leave'});throw Error(guest.body.error);}
+   return [{...host.body,autoReady:true},{...guest.body,autoReady:true}];
+ }
 });
 server.requestTimeout = 10000;
 server.listen(Number(process.env.PORT || 3000), '0.0.0.0', () => {
